@@ -107,7 +107,7 @@ default_alloc_pages(size_t n) {
     }
     return page;
 }
-
+//need to fix ,wrongly sorted
 static void
 default_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
@@ -136,7 +136,20 @@ default_free_pages(struct Page *base, size_t n) {
         }
     }
     nr_free += n;
-    list_add(&free_list, &(base->page_link));
+    //list_add(&free_list, &(base->page_link));
+	le = list_next(&free_list);
+	do {
+		if (le == &free_list) {
+			list_add_before(&free_list, &(base->page_link));
+			break;
+		}
+		p = le2page(le, page_link);
+		if (base < p) {
+			list_add_before(le, &(base->page_link));
+			break;
+		}
+		le = list_next(le);
+	} while (1);
 }
 
 static size_t
