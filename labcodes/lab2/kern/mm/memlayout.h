@@ -124,6 +124,12 @@ typedef struct {
     unsigned int nr_free;           // # of free pages in this free list
 } free_area_t;
 
+struct buddy2 {
+	size_t nr_free;
+	size_t size;					//the total number of units
+	size_t *longest;			
+};
+
 #endif /* !__ASSEMBLER__ */
 
 #endif /* !__KERN_MM_MEMLAYOUT_H__ */

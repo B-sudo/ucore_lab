@@ -8,6 +8,7 @@
 #include <default_pmm.h>
 #include <sync.h>
 #include <error.h>
+#include <buddy_pmm.h>
 
 /* *
  * Task State Segment:
@@ -43,6 +44,7 @@ uintptr_t boot_cr3;
 
 // physical memory management
 const struct pmm_manager *pmm_manager;
+const struct pmm_manager *basic_pmm_manager;
 
 /* *
  * The page directory entry corresponding to the virtual address range
@@ -136,7 +138,9 @@ gdt_init(void) {
 //init_pmm_manager - initialize a pmm_manager instance
 static void
 init_pmm_manager(void) {
-    pmm_manager = &default_pmm_manager;
+    //pmm_manager = &default_pmm_manager;
+	pmm_manager = &buddy_pmm_manager;
+	basic_pmm_manager = &buddy_pmm_manager;
     cprintf("memory management: %s\n", pmm_manager->name);
     pmm_manager->init();
 }
@@ -144,17 +148,21 @@ init_pmm_manager(void) {
 //init_memmap - call pmm->init_memmap to build Page struct for free memory  
 static void
 init_memmap(struct Page *base, size_t n) {
+	basic_pmm_manager->init_memmap(base, n);
     pmm_manager->init_memmap(base, n);
 }
 
 //alloc_pages - call pmm->alloc_pages to allocate a continuous n*PAGESIZE memory 
 struct Page *
 alloc_pages(size_t n) {
+	size_t offset;
     struct Page *page=NULL;
     bool intr_flag;
     local_intr_save(intr_flag);
     {
-        page = pmm_manager->alloc_pages(n);
+        //page = pmm_manager->alloc_pages(n);
+		offset = pmm_manager->alloc_pages(n);
+		page = pa2page(PPN(offset) + page2pa(pages));
     }
     local_intr_restore(intr_flag);
     return page;
@@ -166,7 +174,8 @@ free_pages(struct Page *base, size_t n) {
     bool intr_flag;
     local_intr_save(intr_flag);
     {
-        pmm_manager->free_pages(base, n);
+        //pmm_manager->free_pages(base, n);
+		pmm_manager->free_pages(base, page2ppn(base));
     }
     local_intr_restore(intr_flag);
 }
@@ -179,7 +188,8 @@ nr_free_pages(void) {
     bool intr_flag;
     local_intr_save(intr_flag);
     {
-        ret = pmm_manager->nr_free_pages();
+        //ret = pmm_manager->nr_free_pages();
+		ret = pmm_manager->nr_free_pages();
     }
     local_intr_restore(intr_flag);
     return ret;
@@ -237,6 +247,7 @@ page_init(void) {
         }
     }
 }
+
 
 static void
 enable_paging(void) {
