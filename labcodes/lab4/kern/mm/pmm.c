@@ -11,6 +11,7 @@
 #include <swap.h>
 #include <vmm.h>
 #include <kmalloc.h>
+#include <emalloc.h>
 
 /* *
  * Task State Segment:
@@ -351,6 +352,9 @@ pmm_init(void) {
     print_pgdir();
     
     kmalloc_init();
+	
+	emalloc_init();
+	check_eslob();
 
 }
 
