@@ -3,7 +3,7 @@
 #include <buddy_pmm.h>
 
 int IS_POWER_OF_2(size_t size) {
-	if (size & (size - 1) == 0)
+	if ((size & (size - 1)) == 0)
 		return 1;
 	else 
 		return  0;
@@ -41,7 +41,7 @@ size_t MAX(size_t a, size_t b) {
 struct buddy2 buddy_head;
 struct buddy2 *buddy = &buddy_head;
 #define self buddy
-static size_t longest[1 << 20];
+static size_t longest[1 << 15];
 
 static void
 buddy_init(void) {
@@ -58,15 +58,17 @@ buddy_init_memmap(struct Page *base, size_t size) {
 	if (size < 1) {
 		return NULL;
 	}
+
 	size = fixsize(size) >> 1;
-	
+
 	self->nr_free = self->size = size;
 	self->longest = longest;
 	node_size = size * 2;
 	
 	for (i = 0; i < 2 * size - 1; ++i) {
-		if (IS_POWER_OF_2(i+1))
+		if (IS_POWER_OF_2(i+1)) {
 			node_size /= 2;
+		}	
 		self->longest[i] = node_size;
 	}
 	
@@ -137,7 +139,7 @@ buddy_free(struct Page *base, size_t n) {
 	
 	assert(self && offset >=0 && offset < self->size);
 	struct Page *p = base;
-    for (; p != base + n; p ++) {
+    for (; p != base + n; p++) {
         assert(PageReserved(p));
         p->flags = 0;
 		SetPageProperty(p);
@@ -153,7 +155,7 @@ buddy_free(struct Page *base, size_t n) {
 			return ;
 	}
 	self->longest[index] = node_size;
-	self->nr_free += node_size;
+	self->nr_free += n;
 	
 	while (index) {
 		index = PARENT(index);
@@ -162,7 +164,7 @@ buddy_free(struct Page *base, size_t n) {
 		left_longest = self->longest[LEFT_LEAF(index)];
 		right_longest = self->longest[RIGHT_LEAF(index)];
 		
-		if (left_longest + right_longest == node_size)
+		if ((left_longest + right_longest) == node_size)
 			self->longest[index] = node_size;
 		else
 			self->longest[index] = MAX(left_longest, right_longest);
@@ -181,7 +183,7 @@ basic_check(void) {
     assert((p0 = alloc_page()) != NULL);
     assert((p1 = alloc_page()) != NULL);
     assert((p2 = alloc_page()) != NULL);
-
+	
     assert(p0 != p1 && p0 != p2 && p1 != p2);
     assert(page_ref(p0) == 0 && page_ref(p1) == 0 && page_ref(p2) == 0);
 
