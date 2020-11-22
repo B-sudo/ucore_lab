@@ -41,6 +41,7 @@ size_t MAX(size_t a, size_t b) {
 struct buddy2 buddy_head;
 struct buddy2 *buddy = &buddy_head;
 #define self buddy
+static size_t longest[1 << 20];
 
 static void
 buddy_init(void) {
@@ -53,13 +54,14 @@ static void
 buddy_init_memmap(struct Page *base, size_t size) {
     size_t node_size;
 	int i;
-	size_t pages[size];
 	
-	if (size < 1 || !IS_POWER_OF_2(size))
+	if (size < 1) {
 		return NULL;
+	}
+	size = fixsize(size) >> 1;
 	
 	self->nr_free = self->size = size;
-	self->longest = pages;
+	self->longest = longest;
 	node_size = size * 2;
 	
 	for (i = 0; i < 2 * size - 1; ++i) {
@@ -67,9 +69,24 @@ buddy_init_memmap(struct Page *base, size_t size) {
 			node_size /= 2;
 		self->longest[i] = node_size;
 	}
+	
+	assert(size > 0);
+    struct Page *p = base;
+    for (; p != base + size; p ++) {
+        assert(PageReserved(p));
+        p->flags = p->property = 0;
+		SetPageProperty(p);
+        set_page_ref(p, 0);
+    }
 }
-static size_t 
+static struct Page *
 buddy_alloc(size_t size){
+	assert(size > 0);
+    if (size > self->nr_free) {
+        return NULL;
+    }
+	
+	struct Page *base, *p;
 	size_t index = 0;
 	size_t node_size;
 	size_t offset = 0;
@@ -103,15 +120,29 @@ buddy_alloc(size_t size){
 			MAX(self->longest[LEFT_LEAF(index)], self->longest[RIGHT_LEAF(index)]);
 	}
 	self->nr_free -= size;
-	return offset;
+	p = base = pages + offset;
+	for (; p != base + size; p++) {
+		ClearPageProperty(p);
+		SetPageReserved(p);
+	}
+	return base;
 }
 
 static void 
-buddy_free(struct Page *base, size_t offset) {
+buddy_free(struct Page *base, size_t n) {
+	assert(n > 0);
 	size_t node_size, index = 0;
 	size_t left_longest, right_longest;
+	size_t offset = page2ppn(base);
 	
 	assert(self && offset >=0 && offset < self->size);
+	struct Page *p = base;
+    for (; p != base + n; p ++) {
+        assert(PageReserved(p));
+        p->flags = 0;
+		SetPageProperty(p);
+        set_page_ref(p, 0);
+    }
 	
 	node_size = 1;
 	index = offset + self->size - 1;
@@ -144,10 +175,74 @@ buddy_nr_free(void) {
 }
 
 static void
-basic_check(void) {}
+basic_check(void) {
+	struct Page *p0, *p1, *p2;
+    p0 = p1 = p2 = NULL;
+    assert((p0 = alloc_page()) != NULL);
+    assert((p1 = alloc_page()) != NULL);
+    assert((p2 = alloc_page()) != NULL);
+
+    assert(p0 != p1 && p0 != p2 && p1 != p2);
+    assert(page_ref(p0) == 0 && page_ref(p1) == 0 && page_ref(p2) == 0);
+
+    assert(page2pa(p0) < npage * PGSIZE);
+    assert(page2pa(p1) < npage * PGSIZE);
+    assert(page2pa(p2) < npage * PGSIZE);
+	
+
+    free_page(p0);
+    free_page(p1);
+    free_page(p2);
+
+    assert((p0 = alloc_page()) != NULL);
+    assert((p1 = alloc_page()) != NULL);
+    assert((p2 = alloc_page()) != NULL);
+
+
+    free_page(p0);
+
+    struct Page *p;
+    assert((p = alloc_page()) == p0);
+   
+
+    free_page(p);
+    free_page(p1);
+    free_page(p2);
+}
 
 static void
-default_check(void) {}
+default_check(void) {
+	basic_check();
+	
+	struct Page *p0, *p1, *p2, *p3;
+	p0 = p1 = p2 = NULL;
+	assert((p0 = alloc_page()) != NULL);
+	assert((p1 = alloc_page()) != NULL);
+	assert((p2 = alloc_page()) != NULL);
+	assert((p3 = alloc_page()) != NULL);
+		   
+	assert(p0 + 1 == p1);
+	assert(p1 + 1 == p2);
+	assert(p2 + 1 == p3);
+	assert(page_ref(p0) == 0 && page_ref(p1) == 0 && page_ref(p2) == 0 && page_ref(p3) == 0);
+	
+	assert(page2pa(p0) < npage * PGSIZE);
+    assert(page2pa(p1) < npage * PGSIZE);
+    assert(page2pa(p2) < npage * PGSIZE);
+	assert(page2pa(p3) < npage * PGSIZE);
+	
+	free_page(p0);
+	free_page(p1);
+	free_page(p2);
+	
+	assert((p1 = alloc_page()) != NULL);
+	assert((p0 = alloc_pages(2)) != NULL);
+	assert(p1 + 4 == p0);
+	
+	free_pages(p0, 2);
+	free_page(p1);
+	free_page(p3);
+}
 
 const struct pmm_manager buddy_pmm_manager = {
     .name = "buddy_pmm_manager",
