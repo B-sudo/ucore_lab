@@ -4,7 +4,8 @@
 #include <assert.h>
 #include <default_sched.h>
 
-#define USE_SKEW_HEAP 1
+#define USE_SKEW_HEAP 0
+#define USE_RB_TREE 1
 
 /* You should define the BigStride constant here*/
 /* LAB6: YOUR CODE */
@@ -21,6 +22,19 @@ proc_stride_comp_f(void *a, void *b)
      if (c > 0) return 1;
      else if (c == 0) return 0;
      else return -1;
+}
+
+/* The compare function for two rb_node's and the
+ * corresponding procs*/
+static int
+proc_vrt_comp_f(void *a, void *b)
+{
+	struct proc_struct *p = le2proc(a, cfs_run_pool);
+	struct proc_struct *q = le2proc(b, cfs_run_pool);
+	int32_t c = p->vruntime - q->vruntime;
+	if (c > 0) return 1;
+	else if (c == 0) return 0;
+	else return -1;
 }
 
 /*
@@ -151,6 +165,19 @@ stride_proc_tick(struct run_queue *rq, struct proc_struct *proc) {
           proc->need_resched = 1;
      }
 }
+
+static void
+cfs_init(struct run_queue *rq) {
+	rq->proc_num = 0;
+	rq->rb_run_pool = rb_tree_create(proc_cfs_comp_f);
+	rq->min_vruntime = 0;
+}
+
+static void
+cfs_enqueue(struct run_queue *rq, struct proc_struct *proc) {
+	
+}
+
 
 struct sched_class default_sched_class = {
      .name = "stride_scheduler",

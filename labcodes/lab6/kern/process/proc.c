@@ -123,6 +123,10 @@ alloc_proc(void) {
         proc->lab6_run_pool.left = proc->lab6_run_pool.right = proc->lab6_run_pool.parent = NULL;
         proc->lab6_stride = 0;
         proc->lab6_priority = 0;
+		proc->cfs_run_pool.left = proc->cfs_run_pool.right = proc->cfs_run_pool.parent = NULL;
+		proc->cfs_run_pool.red = 0;
+		proc->vruntime = 0;
+		proc->nice = 0;
     }
     return proc;
 }
