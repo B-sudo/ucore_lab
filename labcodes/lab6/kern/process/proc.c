@@ -903,4 +903,5 @@ lab6_set_priority(uint32_t priority)
     if (priority == 0)
         current->lab6_priority = 1;
     else current->lab6_priority = priority;
+	current->nice = priority;
 }

@@ -20,6 +20,7 @@ void rb_tree_destroy(rb_tree *tree);
 void rb_insert(rb_tree *tree, rb_node *node);
 void rb_delete(rb_tree *tree, rb_node *node);
 rb_node *rb_search(rb_tree *tree, int (*compare)(rb_node *node, void *key), void *key);
+rb_node *rb_min_search(rb_tree *tree);
 rb_node *rb_node_prev(rb_tree *tree, rb_node *node);
 rb_node *rb_node_next(rb_tree *tree, rb_node *node);
 rb_node *rb_node_root(rb_tree *tree);

@@ -6,7 +6,7 @@
 #include <trap.h>
 #include <memlayout.h>
 #include <skew_heap.h>
-
+#include <rb_tree.h>
 
 // process's state in his life cycle
 enum proc_state {

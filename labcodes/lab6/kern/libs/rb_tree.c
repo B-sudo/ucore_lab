@@ -239,6 +239,21 @@ rb_search(rb_tree *tree, int (*compare)(rb_node *node, void *key), void *key) {
     return (node != nil) ? node : NULL;
 }
 
+rb_node *
+rb_min_search(rb_tree *tree){
+	rb_node *x;
+	if (tree == NULL) {
+		cprintf("search a empty tree");
+		return NULL;
+	}
+	x = tree->root;
+	while (x->left != tree->nil)
+		x = x->left;
+	if (x == tree->root) 
+		return NULL;
+	return x;
+}
+
 /* *
  * rb_delete_fixup - performs rotations and changes colors to restore
  * red-black properties after a node is deleted.

@@ -10,6 +10,23 @@
 /* You should define the BigStride constant here*/
 /* LAB6: YOUR CODE */
 #define BIG_STRIDE    0x7FFFFFFF /* ??? */
+#define THRESHOLD		1024
+
+const int sched_prio_to_weight[40] = {
+	/* -20 */	88761,	71755,	56483,	46273,	36291,
+	/* -15 */	29154,	23254,	18705,	14949,	11916,	
+	/* -10 */	9548,	7620,	6100,	4904,	3906,
+	/* -5 */	3121,	2501,	1991,	1586,	1277,	
+	/* 0 */		1024,	820,	655,	526,	423,
+	/* 5 */		335,	272,	215,	172,	137,
+	/* 10 */	110,	87,		70,		56,		45,
+	/* 15 */	36,		29,		23,		18,		15,
+};
+
+int nice_to_prio(int nice) {
+	// nice -20 ~ 19
+	return sched_prio_to_weight[nice + 20];
+}
 
 /* The compare function for two skew_heap_node_t's and the
  * corresponding procs*/
@@ -27,7 +44,7 @@ proc_stride_comp_f(void *a, void *b)
 /* The compare function for two rb_node's and the
  * corresponding procs*/
 static int
-proc_vrt_comp_f(void *a, void *b)
+proc_cfs_comp_f(void *a, void *b)
 {
 	struct proc_struct *p = le2proc(a, cfs_run_pool);
 	struct proc_struct *q = le2proc(b, cfs_run_pool);
@@ -175,16 +192,47 @@ cfs_init(struct run_queue *rq) {
 
 static void
 cfs_enqueue(struct run_queue *rq, struct proc_struct *proc) {
-	
+	if (proc->vruntime < rq->min_vruntime + nice_to_prio(proc->nice))
+		proc->vruntime = rq->min_vruntime + nice_to_prio(proc->nice);
+	rb_insert(rq->rb_run_pool, &proc->cfs_run_pool);
+	rq->proc_num++;
+	proc->rq = rq;
 }
 
+static void
+cfs_dequeue(struct run_queue *rq, struct proc_struct *proc) {
+	rb_delete(rq->rb_run_pool, &proc->cfs_run_pool);
+	rq->proc_num--;
+}
+
+static void
+cfs_proc_tick(struct run_queue *rq, struct proc_struct *proc) {
+	proc->vruntime += nice_to_prio(proc->nice);
+	if (proc->vruntime > rq->min_vruntime + THRESHOLD)
+		proc->need_resched = 1;
+}
+
+static struct proc_struct *
+cfs_pick_next(struct run_queue *rq) {
+	rb_node *le = rb_min_search(rq->rb_run_pool);
+	if (le == NULL)
+		return NULL;
+	struct proc_struct* p = le2proc(le, cfs_run_pool);
+	return p;
+}
 
 struct sched_class default_sched_class = {
-     .name = "stride_scheduler",
+	.name = "cfs_scheduler",
+	.init = cfs_init,
+	.enqueue = cfs_enqueue,
+	.dequeue = cfs_dequeue,
+	.pick_next = cfs_pick_next,
+	.proc_tick = cfs_proc_tick,
+     /*.name = "stride_scheduler",
      .init = stride_init,
      .enqueue = stride_enqueue,
      .dequeue = stride_dequeue,
      .pick_next = stride_pick_next,
-     .proc_tick = stride_proc_tick,
+     .proc_tick = stride_proc_tick,*/
 };
 
