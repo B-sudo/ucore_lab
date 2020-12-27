@@ -195,6 +195,11 @@ cfs_enqueue(struct run_queue *rq, struct proc_struct *proc) {
 	if (proc->vruntime < rq->min_vruntime + nice_to_prio(proc->nice))
 		proc->vruntime = rq->min_vruntime + nice_to_prio(proc->nice);
 	rb_insert(rq->rb_run_pool, &proc->cfs_run_pool);
+
+	rb_node *le = rb_min_search(rq->rb_run_pool);
+	struct proc_struct* p = le2proc(le, cfs_run_pool);
+	rq->min_vruntime = p->vruntime;	
+
 	rq->proc_num++;
 	proc->rq = rq;
 }
@@ -203,6 +208,13 @@ static void
 cfs_dequeue(struct run_queue *rq, struct proc_struct *proc) {
 	rb_delete(rq->rb_run_pool, &proc->cfs_run_pool);
 	rq->proc_num--;
+	if (rq->proc_num == 0)	//empty tree
+		rq->min_vruntime = 0;
+	else {
+		rb_node *le = rb_min_search(rq->rb_run_pool);
+		struct proc_struct* p = le2proc(le, cfs_run_pool);
+		rq->min_vruntime = p->vruntime;	
+	}
 }
 
 static void
